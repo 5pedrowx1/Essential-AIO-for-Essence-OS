@@ -1,1 +1,54 @@
-Get-AppXPackage -Name Microsoft.Windows.Search -AllUsers | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register "$($_.InstallLocation)\AppXManifest.xml"}
+@echo off
+title Correção do botão de pesquisa - Windows 10
+color 0A
+echo ============================================
+echo  CORRIGINDO O BOTÃO DE PESQUISA DO WINDOWS
+echo ============================================
+
+:: Executar como administrador
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+    echo [!] Por favor, execute este script como administrador.
+    pause
+    exit /b
+)
+
+:: 1. Reiniciar o Windows Explorer
+echo.
+echo [1/6] Reiniciando Windows Explorer...
+taskkill /f /im explorer.exe
+start explorer.exe
+
+:: 2. Finalizar SearchApp.exe (processo de busca)
+echo.
+echo [2/6] Finalizando processo da pesquisa...
+taskkill /f /im SearchApp.exe >nul 2>&1
+
+:: 3. Ativar o serviço Windows Search
+echo.
+echo [3/6] Ativando o serviço Windows Search...
+sc config "WSearch" start= auto
+net start "WSearch"
+
+:: 4. Executar DISM
+echo.
+echo [4/6] Executando DISM (aguarde)...
+DISM /Online /Cleanup-Image /RestoreHealth
+
+:: 5. Executar SFC
+echo.
+echo [5/6] Executando verificação de arquivos do sistema (SFC)...
+sfc /scannow
+
+:: 6. Reinstalar aplicativos do Windows
+echo.
+echo [6/6] Reinstalando aplicativos do Windows (aguarde)...
+powershell -Command "Get-AppxPackage -AllUsers ^| Foreach {Add-AppxPackage -DisableDevelopmentMode -Register '$($_.InstallLocation)\AppXManifest.xml'}"
+
+echo.
+echo ============================================
+echo  CORREÇÃO CONCLUÍDA!
+echo  Reinicie seu computador se a pesquisa ainda não funcionar.
+echo ============================================
+pause
+exit
